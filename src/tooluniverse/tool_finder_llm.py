@@ -55,7 +55,7 @@ class ToolFinderLLM(BaseTool):
         # Get LLM configuration from tool_config
         configs = tool_config.get("configs", {})
         self.api_type = configs.get("api_type", "YUNWU")
-        self.model_id = configs.get("model_id", "gpt-4o-1120")
+        self.model_id = configs.get("model_id", "gemini-2.5-flash")
         self.temperature = configs.get("temperature", 0.1)
         self.max_new_tokens = configs.get("max_new_tokens", 4096)
         self.return_json = configs.get("return_json", True)

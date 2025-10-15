@@ -11,6 +11,7 @@ import os
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 default_tool_files = {
+    # TODO: filter useful tool types, change mcp command accordingly
     "special_tools": os.path.join(current_dir, "data", "special_tools.json"),
     "tool_finder": os.path.join(current_dir, "data", "finder_tools.json"),
     # 'tool_finder_llm': os.path.join(current_dir, 'data', 'tool_finder_llm_config.json'),
