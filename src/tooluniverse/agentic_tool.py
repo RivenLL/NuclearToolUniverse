@@ -8,22 +8,24 @@ from typing import Any, Callable, Dict, List, Optional
 from .base_tool import BaseTool
 from .tool_registry import register_tool
 from .logging_config import get_logger
-from .llm_clients import AzureOpenAIClient, GeminiClient, OpenRouterClient, VLLMClient
+from .llm_clients import AzureOpenAIClient, GeminiClient, OpenRouterClient, VLLMClient,YUNWUClinet
 
 
 # Global default fallback configuration
 DEFAULT_FALLBACK_CHAIN = [
+    {"api_type": "YUNWU", "model_id": "gemini-2.5-flash"},
     {"api_type": "CHATGPT", "model_id": "gpt-4o-1120"},
     {"api_type": "OPENROUTER", "model_id": "openai/gpt-4o"},
-    {"api_type": "GEMINI", "model_id": "gemini-2.0-flash"},
+    {"api_type": "GEMINI", "model_id": "gemini-2.0-flash"}
 ]
 
 # API key environment variable mapping
 API_KEY_ENV_VARS = {
+    "YUNWU":["YUNWU_API_KEY"],
     "CHATGPT": ["AZURE_OPENAI_API_KEY", "AZURE_OPENAI_ENDPOINT"],
     "OPENROUTER": ["OPENROUTER_API_KEY"],
     "GEMINI": ["GEMINI_API_KEY"],
-    "VLLM": ["VLLM_SERVER_URL"],
+    "VLLM": ["VLLM_SERVER_URL"]
 }
 
 
@@ -213,6 +215,8 @@ class AgenticTool(BaseTool):
                 self._llm_client = OpenRouterClient(model_id, self.logger)
             elif api_type == "GEMINI":
                 self._llm_client = GeminiClient(model_id, self.logger)
+            elif api_type == "YUNWU":
+                self._llm_client = YUNWUClinet(model_id, self.logger)
             elif api_type == "VLLM":
                 if not server_url:
                     server_url = os.getenv("VLLM_SERVER_URL")
@@ -252,7 +256,7 @@ class AgenticTool(BaseTool):
 
     # ------------------------------------------------------------------ LLM utilities -----------
     def _validate_model_config(self):
-        supported_api_types = ["CHATGPT", "OPENROUTER", "GEMINI", "VLLM"]
+        supported_api_types = ["CHATGPT", "OPENROUTER", "GEMINI", "VLLM","YUNWU"]
         if self._api_type not in supported_api_types:
             raise ValueError(
                 f"Unsupported API type: {self._api_type}. Supported types: {supported_api_types}"

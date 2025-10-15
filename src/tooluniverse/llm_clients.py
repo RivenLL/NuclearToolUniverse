@@ -831,3 +831,112 @@ class VLLMClient(BaseLLMClient):
 
         self.logger.error("Max retries exceeded for vLLM request")
         return None
+
+class YUNWUClinet(BaseLLMClient):
+    def __init__(self, model_name: str, logger):
+        try:
+            from openai import OpenAI  # type: ignore
+        except Exception as e:  # pragma: no cover
+            raise RuntimeError("openai package not available") from e
+
+        api_key = os.getenv("YUNWU_API_KEY")
+        if not api_key:
+            raise ValueError("YUNWU_API_KEY not found in environment variables")
+        base_url = "https://yunwu.ai/v1/"
+        self.client = OpenAI(api_key=api_key, base_url=base_url)
+        self.model_name = model_name
+        self.logger = logger
+
+    def test_api(self) -> None:
+        self.client.chat.completions.create(
+            model=self.model_name,
+            messages=[{"role": "user", "content": "ping"}],
+            max_tokens=8,
+            temperature=0,
+        )
+
+    def infer(
+        self,
+        messages: List[Dict[str, str]],
+        temperature: Optional[float],
+        max_tokens: Optional[int],
+        return_json: bool,
+        custom_format: Any = None,
+        max_retries: int = 5,
+        retry_delay: int = 5,
+    ) -> Optional[str]:
+        retries = 0
+        while retries < max_retries:
+            try:
+                kwargs: Dict[str, Any] = {
+                    "model": self.model_name,
+                    "messages": messages,
+                    "temperature": temperature if temperature is not None else 0,
+                }
+                if max_tokens is not None:
+                    kwargs["max_tokens"] = max_tokens
+                if return_json:
+                    kwargs["response_format"] = {"type": "json_object"}
+
+                response = self.client.chat.completions.create(**kwargs)
+                return response.choices[0].message.content
+            except Exception as e:  # noqa: BLE001
+                self.logger.error(f"OpenAI error: {e}")
+                retries += 1
+                time.sleep(retry_delay * retries)
+        return None
+
+    @staticmethod
+    def _extract_text_from_stream_chunk(chunk) -> Optional[str]:
+        if not chunk.choices:
+            return None
+        delta = chunk.choices[0].delta
+        if delta and delta.content:
+            return delta.content
+        return None
+
+    def infer_stream(
+        self,
+        messages: List[Dict[str, str]],
+        temperature: Optional[float],
+        max_tokens: Optional[int],
+        return_json: bool,
+        custom_format: Any = None,
+        max_retries: int = 5,
+        retry_delay: int = 5,
+    ):
+        retries = 0
+        while retries < max_retries:
+            try:
+                kwargs: Dict[str, Any] = {
+                    "model": self.model_name,
+                    "messages": messages,
+                    "temperature": temperature if temperature is not None else 0,
+                    "stream": True,
+                }
+                if max_tokens is not None:
+                    kwargs["max_tokens"] = max_tokens
+                if return_json:
+                    kwargs["response_format"] = {"type": "json_object"}
+
+                stream = self.client.chat.completions.create(**kwargs)
+                for chunk in stream:
+                    text = self._extract_text_from_stream_chunk(chunk)
+                    if text:
+                        yield text
+                return
+            except Exception as e:  # noqa: BLE001
+                self.logger.error(f"OpenAI streaming error: {e}")
+                retries += 1
+                time.sleep(retry_delay * retries)
+
+        # Fallback if all retries fail (optional, matches GeminiClient pattern)
+        yield from super().infer_stream(
+            messages,
+            temperature,
+            max_tokens,
+            return_json,
+            custom_format,
+            max_retries,
+            retry_delay,
+        )
